@@ -1,0 +1,19 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: thesting12345-gitops
+  description: thesting12345
+  annotations:
+    argocd/app-selector: rht-gitops.com/janus-argocd=thesting12345-gitops
+    backstage.io/kubernetes-label-selector: 'app=thesting12345,sonataflow.org/workflow-app=thesting12345'
+    backstage.io/kubernetes-namespace: sonataflow-infra
+    backstage.io/kubernetes-id: thesting12345
+    github.com/project-slug: orchestrator-test/thesting12345-gitops
+    gitlab.com/project-slug: orchestrator-test/thesting12345-gitops
+spec:
+  type: workflow-project
+  system: system:default/janus-orchestrator
+  lifecycle: development
+  owner: user:guest
+  dependsOn:
+    - component:thesting12345

@@ -1,0 +1,23 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: thesting12345
+  namespace: orchestrator-gitops
+  labels:
+    app-type: bootstrap
+    app: thesting12345
+    rht-gitops.com/janus-argocd: thesting12345
+spec:
+  destination:
+    namespace: sonataflow-infra
+    server: https://kubernetes.default.svc
+  project: orchestrator-gitops
+  source:
+    path: argocd
+    repoURL: git@github.com:orchestrator-test/thesting12345.git
+    targetRevision: HEAD
+  syncPolicy:
+    automated:
+      # Keep history of pipeline runs
+      prune: false
+      selfHeal: true

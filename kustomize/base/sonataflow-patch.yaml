@@ -1,0 +1,30 @@
+apiVersion: sonataflow.org/v1alpha08
+kind: SonataFlow
+metadata:
+  name: thesting12345
+  annotations:
+    sonataflow.org/profile: gitops
+  labels:
+    backstage.io/kubernetes-id: thesting12345
+spec:
+  persistence:
+    postgresql:
+      secretRef:
+        name: sonataflow-psql-postgresql
+        userKey: postgres-username
+        passwordKey: postgres-password
+      serviceRef:
+        name: sonataflow-psql-postgresql
+        namespace: sonataflow-infra
+        port: 5432
+        databaseName: sonataflow
+        databaseSchema: thesting12345
+  podTemplate:
+    container:
+      image: serverless-workflow-thesting12345
+      envFrom:
+        - configMapRef:
+            name: thesting12345-gitops
+        - secretRef:
+            name: thesting12345-secret
+      resources: {}
