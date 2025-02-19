@@ -1,0 +1,209 @@
+apiVersion: sonataflow.org/v1alpha08
+kind: SonataFlow
+metadata:
+  annotations:
+    sonataflow.org/description: thesting12345
+    sonataflow.org/expressionLang: jq
+    sonataflow.org/profile: dev
+    sonataflow.org/version: 1.0.0-SNAPSHOT
+  creationTimestamp: null
+  labels:
+    app: thesting12345
+    sonataflow.org/workflow-app: thesting12345
+  name: thesting12345
+spec:
+  flow:
+    annotations:
+    - workflow-type/assessment
+    dataInputSchema:
+      failOnValidationErrors: true
+      schema: schemas/thesting12345-input-schema.json
+    functions:
+    - name: execute
+      operation: service:java:io.janus.workflow.thesting12345.SampleAssessment::execute
+      type: custom
+    - name: logOutput
+      operation: sysout:INFO
+      type: custom
+    - name: extract
+      operation: .executeResult | flatten | map(.id)
+      type: expression
+    - name: checkProcessDefinitionExistence
+      operation: specs/thesting12345-dataindex.yaml#reactiveGraphQLHandlerPost
+      type: rest
+    - name: removeMissingWorkflowsFromOptions
+      operation: .missingWorkflows as $f | .executeResult | walk( if type == "object"
+        then select(all($f[] != .id; .)) else . end )
+      type: expression
+    - name: assessmentResult
+      operation: '{ result: { "completedWith":"success", "message": "The workflow
+        thesting12345 completed successfully", "outputs":[ { "key": "Validated Result
+        - new options", "value": (.validatedResult.newOptions | join(",")) }, { "key":
+        "Validated Result - other options", "value": (.validatedResult.otherOptions
+        | join(",")) }, { "key": "Validated Result - upgrade options", "value": (.validatedResult.upgradeOptions
+        | join(",")) }, { "key": "Validated Result - migration options", "value":
+        (.validatedResult.migrationOptions | join(",")) }, { "key": "Validated Result
+        - continuation options", "value": (.validatedResult.continuationOptions |
+        join(",")) } ], "nextWorkflows":[ { "id": .executeResult.currentVersion.id,
+        "name": .executeResult.currentVersion.name } ] } }'
+      type: expression
+    - name: errorAssessmentResult
+      operation: '{ result: { "completedWith":"error", "message": "The workflow thesting12345
+        completed with error", "outputs":[ { "key": "Missing Workflows", "value":
+        (.missingWorkflows | join(",")) } ], "nextWorkflows":[] } }'
+      type: expression
+    start:
+      stateName: StartState
+    states:
+    - actionMode: sequential
+      actions:
+      - actionDataFilter:
+          toStateData: .executeResult
+          useResults: true
+        functionRef:
+          arguments:
+            sampleText: .sampleText
+          invoke: sync
+          refName: execute
+        name: executeAction
+      name: StartState
+      stateDataFilter:
+        output: '. +={workflowOptions: .preCheck.validatedResult}'
+      transition:
+        nextState: ExtractWorkflows
+      type: operation
+    - actionMode: sequential
+      actions:
+      - actionDataFilter:
+          toStateData: .infrasWorkflows
+          useResults: true
+        functionRef:
+          invoke: sync
+          refName: extract
+        name: ExtractWorkflowsAction
+      name: ExtractWorkflows
+      transition:
+        nextState: QueryWorkflow
+      type: operation
+    - actions:
+      - actionDataFilter:
+          results: ${ .data.ProcessDefinitions[0].id }
+          useResults: true
+        functionRef:
+          arguments:
+            operationName: CheckProcessDefQuery
+            query: 'query CheckProcessDefQuery($id: String) { ProcessDefinitions  (
+              where: {id: { equal: $id} } ) { id } }'
+            variables:
+              id: ${ .infrasWorkflow }
+          invoke: sync
+          refName: checkProcessDefinitionExistence
+        name: checkAction
+      inputCollection: ${ .infrasWorkflows }
+      iterationParam: infrasWorkflow
+      mode: parallel
+      name: QueryWorkflow
+      outputCollection: ${ .fetchResults }
+      transition:
+        nextState: Check
+      type: foreach
+    - dataConditions:
+      - condition: (.infrasWorkflows-.fetchResults | length > 0)
+        transition:
+          nextState: PrintError
+      defaultCondition:
+        transition:
+          nextState: HandleNoError
+      name: Check
+      type: switch
+    - actionMode: sequential
+      actions:
+      - actionDataFilter:
+          useResults: true
+        functionRef:
+          arguments:
+            message: '"workflows: \(.infrasWorkflows-.fetchResults) are not found"'
+          invoke: sync
+          refName: logOutput
+        name: error
+      name: PrintError
+      stateDataFilter:
+        output: '. += { missingWorkflows: (.infrasWorkflows - .fetchResults) } | del(.infrasWorkflows,
+          .fetchResults)'
+      transition:
+        nextState: HandleError
+      type: operation
+    - actionMode: sequential
+      actions:
+      - actionDataFilter:
+          toStateData: ${ .validatedResult }
+          useResults: true
+        functionRef:
+          invoke: sync
+          refName: removeMissingWorkflowsFromOptions
+        name: error
+      name: HandleError
+      stateDataFilter:
+        output: .originalResult = .executeResult | del(.executeResult)
+      transition:
+        nextState: reportFailure
+      type: operation
+    - actionMode: sequential
+      actions:
+      - actionDataFilter:
+          useResults: true
+        functionRef:
+          invoke: sync
+          refName: errorAssessmentResult
+        name: reportFailure
+      name: reportFailure
+      transition:
+        nextState: printAction
+      type: operation
+    - actionMode: sequential
+      actions: []
+      name: HandleNoError
+      stateDataFilter:
+        output: .validatedResult = .executeResult | del(.infrasWorkflows, .fetchResults)
+      transition:
+        nextState: reportNoError
+      type: operation
+    - actionMode: sequential
+      actions:
+      - actionDataFilter:
+          useResults: true
+        functionRef:
+          invoke: sync
+          refName: assessmentResult
+        name: reportNoError
+      name: reportNoError
+      transition:
+        nextState: printAction
+      type: operation
+    - actionMode: sequential
+      actions:
+      - actionDataFilter:
+          useResults: true
+        functionRef:
+          arguments:
+            message: .result
+          invoke: sync
+          refName: logOutput
+      end:
+        terminate: true
+      name: printAction
+      type: operation
+  podTemplate:
+    container:
+      resources: {}
+  resources:
+    configMaps:
+    - configMap:
+        name: 01-thesting12345-resources-schemas
+      workflowPath: schemas
+    - configMap:
+        name: 02-thesting12345-resources-specs
+      workflowPath: specs
+status:
+  address: {}
+  lastTimeRecoverAttempt: null

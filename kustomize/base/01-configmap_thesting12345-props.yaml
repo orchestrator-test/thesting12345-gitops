@@ -1,0 +1,16 @@
+apiVersion: v1
+data:
+  application.properties: "# This for kogito service url\nkogito.service.url=http://${quarkus.http.host}:${quarkus.http.port}\n\n#
+    This is for pre-check validation\nquarkus.rest-client.thesting12345_dataindex_yaml.url=${kogito.data-index.url:${kogito.service.url}}\n\n#
+    This property is used to select the log level, which controls the amount\n# of
+    information logged on HTTP requests based on the severity of the events. \n# Possible
+    values: OFF, FATAL, ERROR, WARN, INFO, DEBUG, ALL. \n# and see https://quarkus.io/guides/logging
+    for documentation \nquarkus.log.category.\"org.apache.http\".level=INFO\nquarkus.log.level=INFO\n\n#
+    This is for persistence\nquarkus.flyway.migrate-at-start=true"
+kind: ConfigMap
+metadata:
+  creationTimestamp: null
+  labels:
+    app: thesting12345
+    sonataflow.org/workflow-app: thesting12345
+  name: thesting12345-props

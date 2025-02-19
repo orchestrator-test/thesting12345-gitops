@@ -1,0 +1,36 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - 01-configmap_thesting12345-props.yaml
+  - 02-configmap_01-thesting12345-resources-schemas.yaml
+  - 03-configmap_02-thesting12345-resources-specs.yaml
+  - 04-sonataflow_thesting12345.yaml
+
+namespace: sonataflow-infra
+
+configurations:
+- config/image-configuration.yaml
+
+generatorOptions:
+  disableNameSuffixHash: true
+
+secretGenerator:
+  - envs:
+      - secret.properties
+    name: thesting12345-secret
+configMapGenerator:
+  - envs:
+      - config.properties
+    name: thesting12345-gitops
+
+# Replace dev profile in SonataFlow instance(s), add image and envFrom
+patches:
+- path: sonataflow-patch.yaml
+  target:
+    kind: SonataFlow
+    name: thesting12345
+images:
+- name: serverless-workflow-thesting12345
+  newName: quay.io/orchestrator-test/foo
+  newTag: 2b9d498aebd61cd1c57ed1ad0701eb5c60efb2bb
